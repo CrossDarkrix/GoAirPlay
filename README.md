@@ -33,6 +33,8 @@ Run `GoAirPlay.exe`, allow it through the Windows Firewall, then pick **GoAirPla
 
 スマホ本体から音を出す場合は、姉妹プロジェクトの Android アプリ版がおすすめです。Go 受信機を内蔵し、マルチキャストロックと AudioTrack 出力をアプリ側で担います。
 
+- GoAirPlay for Android: https://github.com/CrossDarkrix/GoAirPlay-for-Android
+
 For playback on an Android phone itself, use the companion Android app, which embeds this receiver and handles the multicast lock and audio output natively.
 
 ## ビルド / Build
