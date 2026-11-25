@@ -1,0 +1,16 @@
+# Binaries
+GoAirPlay.exe
+GoAirPlay-termux
+goairplay
+airplay-go
+*.exe
+
+# Identity key (derived device ID source) - never publish
+goairplay_key.bin
+
+# Recordings and debug logs
+goairplay_out.wav
+*.log
+
+# Source archive (rebuilt on demand)
+goairplay-src.zip
