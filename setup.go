@@ -174,10 +174,15 @@ func runTimingServer() {
 	}
 	log.Printf("[ntp] timing server on :%d", udpTimingPort)
 	buf := make([]byte, 64)
+	var ntpPkts atomic.Int64
 	for {
 		n, src, err := conn.ReadFromUDP(buf)
 		if err != nil {
+			log.Printf("[ntp] read error: %v", err)
 			return
+		}
+		if c := ntpPkts.Add(1); c <= 5 {
+			log.Printf("[ntp] request #%d len=%d from %v", c, n, src)
 		}
 		if n < 32 {
 			continue
@@ -194,7 +199,9 @@ func runTimingServer() {
 		sendSec, sendFrac := ntpNow()
 		binary.BigEndian.PutUint32(res[24:28], sendSec)
 		binary.BigEndian.PutUint32(res[28:32], sendFrac)
-		conn.WriteToUDP(res[:], src)
+		if _, werr := conn.WriteToUDP(res[:], src); werr != nil {
+			log.Printf("[ntp] reply write error: %v", werr)
+		}
 	}
 }
 
@@ -217,6 +224,7 @@ func runDataServer() {
 	for {
 		n, _, err := conn.ReadFromUDP(buf)
 		if err != nil {
+			log.Printf("[rtp] read error: %v", err)
 			return
 		}
 		st := curStream.Load()
@@ -224,6 +232,9 @@ func runDataServer() {
 			continue
 		}
 		pkt := st.dataPkts.Add(1)
+		if pkt <= 3 {
+			log.Printf("[rtp] pkt #%d len=%d", pkt, n)
+		}
 		if n <= 12 {
 			continue
 		}
@@ -231,6 +242,9 @@ func runDataServer() {
 		plain := decryptRAOP(st.aesKey, st.aesIV, payload)
 		if st.dec != nil {
 			pcm := safeDecode(st, plain)
+			if pkt <= 3 {
+				log.Printf("[rtp] pkt #%d decoded pcm=%d bytes, decode errors=%d", pkt, len(pcm), st.decErrs.Load())
+			}
 			if len(pcm) > 0 {
 				enqueuePCM(pcm)
 				st.writeWAV(pcm)

@@ -1,10 +1,10 @@
-//go:build linux || android
+//go:build linux || android || darwin
 
 package main
 
 // Audio output on Linux/Android (incl. Termux): decoded PCM is piped
 // to an external player process's stdin. Backends are tried in order:
-// ffplay (ffmpeg), mpv, paplay (PulseAudio). If none is installed the
+// mpv, ffplay (ffmpeg), paplay (PulseAudio). If none is installed the
 // audio is dropped with a one-time hint in the log.
 
 import (
@@ -49,14 +49,31 @@ func (p *pipePlayer) startLocked() bool {
 		name string
 		args []string
 	}
+	// mpv first: on Termux it is the backend confirmed to reach the
+	// phone speaker (2026-11-26); ffplay there can start yet stay
+	// silent, and paplay needs a running PulseAudio daemon.
 	candidates := []backend{
-		{"ffplay", []string{"-hide_banner", "-loglevel", "error", "-nodisp", "-autoexit",
-			"-fflags", "nobuffer", "-flags", "low_delay", "-probesize", "32", "-analyzeduration", "0",
-			"-f", "s16le", "-ar", "44100", "-ac", "2", "-i", "-"}},
 		{"mpv", []string{"--no-video", "--really-quiet", "--demuxer=rawaudio",
 			"--demuxer-rawaudio-format=s16le", "--demuxer-rawaudio-rate=44100",
 			"--demuxer-rawaudio-channels=2", "-"}},
+		{"ffplay", []string{"-hide_banner", "-loglevel", "error", "-nodisp", "-autoexit",
+			"-fflags", "nobuffer", "-flags", "low_delay", "-probesize", "32", "-analyzeduration", "0",
+			"-f", "s16le", "-ar", "44100", "-ac", "2", "-i", "-"}},
 		{"paplay", []string{"--raw", "--format=s16le", "--rate=44100", "--channels=2"}},
+	}
+	// GOAIRPLAY_PLAYER=<name> tries that backend first (useful on
+	// Termux, where an installed-but-silent player can shadow a
+	// working one).
+	if want := os.Getenv("GOAIRPLAY_PLAYER"); want != "" {
+		var first, rest []backend
+		for _, b := range candidates {
+			if b.name == want {
+				first = append(first, b)
+			} else {
+				rest = append(rest, b)
+			}
+		}
+		candidates = append(first, rest...)
 	}
 	for _, b := range candidates {
 		path, err := exec.LookPath(b.name)
@@ -78,7 +95,7 @@ func (p *pipePlayer) startLocked() bool {
 	}
 	if !p.hinted {
 		p.hinted = true
-		log.Printf("[play] no audio player found - install ffmpeg (ffplay) or mpv in Termux to hear sound")
+		log.Printf("[play] no audio player found - install mpv (or ffmpeg / pulseaudio) in Termux to hear sound")
 	}
 	p.dead = true
 	return false

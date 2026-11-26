@@ -10,7 +10,9 @@ An AirPlay audio receiver written in pure Go. Stream music from an iPhone or Mac
 |---|---|
 | Windows (GoAirPlay.exe) | スピーカー / USB DAC からライブ再生 |
 | Android | 専用アプリ版があります（下記） |
-| Termux (CLI) | 発見・受信・復号まで動作。音声出力は ffplay / mpv / paplay があれば再生 |
+| Termux (CLI) | ライブ再生（mpv / ffplay / paplay のいずれかが必要。mpv 推奨） |
+| iOS (脱獄環境) | ライブ再生（AudioQueue）。手順は IOS_JAILBREAK_ja.md |
+| macOS (Apple Silicon) | ライブ再生（mpv / ffplay / paplay のいずれかが必要） |
 
 ## 使い方（Windows）/ Usage
 
@@ -39,19 +41,25 @@ For playback on an Android phone itself, use the companion Android app, which em
 
 ## ビルド / Build
 
+Go 1.22 以降でビルドできます。
+
 ```
 # Windows
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o GoAirPlay.exe .
 # Termux / Android (CLI binary)
 CGO_ENABLED=0 GOOS=android GOARCH=arm64 go build -o GoAirPlay-termux .
+# macOS (Apple Silicon)
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o GoAirPlay-mac .
 ```
+
+iOS (脱獄環境) は端末上でビルドします。手順は IOS_JAILBREAK_ja.md を参照してください。
 
 ## 技術メモ / Notes
 
 - 発見: mDNS (`_raop._tcp` + `_airplay._tcp`、ポート 7000)。通常は zeroconf ライブラリ、インターフェース列挙が使えない環境（Android/Termux）では内蔵の最小 mDNS 実装に自動で切り替わります
 - 認証: pair-verify (Ed25519/X25519)、FairPlay v3 ハンドシェイク
 - 音声鍵: `SHA-512(playfair復号鍵 ‖ ECDH共有秘密)` の先頭16バイト
-- 復号: AES-CBC (RAOP) → ALAC デコード → Windows は winmm (waveOut)、Linux/Android は外部プレイヤーまたは stdout (PCM) へ出力
+- 復号: AES-CBC (RAOP) → ALAC デコード → Windows は winmm (waveOut)、Linux/Android/macOS は外部プレイヤーまたは stdout (PCM)、iOS (脱獄) は AudioQueue へ出力
 
 ## ライセンス / License
 

@@ -31,7 +31,7 @@ import (
 
 // buildStamp identifies the build in the startup banner, so a stale
 // binary on a device can never be mistaken for the latest one.
-const buildStamp = "1.0.0"
+const buildStamp = "1.0.1"
 
 var (
 	deviceName = flag.String("name", "GoAirPlay", "receiver name shown on the iPhone AirPlay list")
@@ -65,9 +65,10 @@ func main() {
 	iface, mac, lanIP := pickLANInterface()
 	devMAC, devIP = mac, lanIP
 	loadIdentity()
-	if devMAC == "" {
-		// No usable MAC (Android hides it): derive a stable,
-		// locally-administered device ID from our Ed25519 identity.
+	if devMAC == "" || devMAC == "02:00:00:00:00:00" {
+		// No usable MAC (Android hides it, iOS reports the dummy
+		// 02:00:00:00:00:00): derive a stable, locally-administered
+		// device ID from our Ed25519 identity.
 		b := append([]byte(nil), edPub[:6]...)
 		b[0] = (b[0] & 0xFE) | 0x02
 		devMAC = fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", b[0], b[1], b[2], b[3], b[4], b[5])
